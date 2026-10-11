@@ -71,7 +71,7 @@ export default {
     if (interaction.type === 2) {
       const command = interaction.data?.name;
       const replies = {
-        hello: "مرحبًا! البوت يعمل بنجاح ✅",
+        "123": "مرحبًا! محمود يعمل بنجاح ✅",
         status: "حالة البوت: متصل ويعمل ✅",
       };
       const content = replies[command] ?? "هذا الأمر غير معروف حاليًا.";
