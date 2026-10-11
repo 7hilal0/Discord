@@ -97,46 +97,45 @@ const commands = [
 
 async function answerWithAI(interaction, env) {
   const question = option(interaction, "question");
-  if (!env.OPENROUTER_API_KEY) {
-    await fetch(`${DISCORD_API}/webhooks/${APP_ID}/${interaction.token}/messages/@original`, {
+  const webhookUrl = `${DISCORD_API}/webhooks/${APP_ID}/${interaction.token}/messages/@original`;
+  if (!env.GEMINI_API_KEY) {
+    await fetch(webhookUrl, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: "الذكاء الاصطناعي غير مضبوط بعد. أضف OPENROUTER_API_KEY كـ Secret في Cloudflare." })
+      body: JSON.stringify({ content: "الذكاء الاصطناعي غير مضبوط بعد. أضف GEMINI_API_KEY كـ Secret في Cloudflare." })
     });
     return;
   }
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const model = env.GEMINI_MODEL || "gemini-2.5-flash";
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://discord.gggy6vvv.workers.dev/",
-        "X-Title": "Mahmoud Discord Bot"
+        "x-goog-api-key": env.GEMINI_API_KEY,
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: env.OPENROUTER_MODEL || "openrouter/auto",
-        messages: [
-          { role: "system", content: "أنت محمود، مساعد ودود داخل Discord. أجب بالعربية الواضحة وباختصار. لا تدّع تنفيذ إجراءات داخل السيرفر؛ الأوامر الإدارية تحتاج أدوات Discord مخصصة." },
-          { role: "user", content: question }
-        ],
-        max_tokens: 700
+        system_instruction: {
+          parts: [{ text: "أنت محمود، مساعد ودود داخل Discord. أجب بالعربية الواضحة وباختصار. لا تدّع تنفيذ إجراءات داخل السيرفر؛ الأوامر الإدارية تحتاج أدوات Discord مخصصة." }]
+        },
+        contents: [{ role: "user", parts: [{ text: question }] }],
+        generationConfig: { maxOutputTokens: 700, temperature: 0.7 }
       })
     });
     const data = await response.json();
     const answer = response.ok
-      ? (data.choices?.[0]?.message?.content || "لم أتمكن من صياغة رد.")
-      : "تعذّر الاتصال بنموذج الذكاء الاصطناعي. تحقق من مفتاح OpenRouter والنموذج المحدد.";
-    await fetch(`${DISCORD_API}/webhooks/${APP_ID}/${interaction.token}/messages/@original`, {
+      ? (data.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("").trim() || "لم أتمكن من صياغة رد.")
+      : "تعذّر الاتصال بـ Gemini. تحقق من مفتاح Google AI Studio، وحدود الاستخدام، واسم النموذج.";
+    await fetch(webhookUrl, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: answer.slice(0, 1900) })
     });
   } catch {
-    await fetch(`${DISCORD_API}/webhooks/${APP_ID}/${interaction.token}/messages/@original`, {
+    await fetch(webhookUrl, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: "حدث خطأ أثناء الاتصال بالذكاء الاصطناعي. حاول مرة أخرى." })
+      body: JSON.stringify({ content: "حدث خطأ أثناء الاتصال بـ Gemini. حاول مرة أخرى." })
     });
   }
 }
