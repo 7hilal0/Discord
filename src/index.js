@@ -48,6 +48,32 @@ export default {
       return json({ ok: true, service: "discord-worker" });
     }
 
+    // Register the slash commands with Discord when /register is requested.
+    // Keep DISCORD_BOT_TOKEN configured as a Cloudflare Secret, never in GitHub.
+    if (request.method === "POST" && url.pathname === "/register") {
+      if (!env.DISCORD_BOT_TOKEN) {
+        return json({ error: "Missing DISCORD_BOT_TOKEN secret in Cloudflare" }, 500);
+      }
+      const appId = "1558897599287656457";
+      const commands = [
+        { name: "123", description: "اختبار بوت محمود", type: 1 },
+        { name: "status", description: "عرض حالة بوت محمود", type: 1 }
+      ];
+      const discordResponse = await fetch(`https://discord.com/api/v10/applications/${appId}/commands`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bot ${env.DISCORD_BOT_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(commands)
+      });
+      const resultText = await discordResponse.text();
+      if (!discordResponse.ok) {
+        return json({ error: "Discord command registration failed", status: discordResponse.status, details: resultText.slice(0, 500) }, 502);
+      }
+      return json({ ok: true, registered: commands.map(command => command.name) });
+    }
+
     if (request.method !== "POST" || url.pathname !== "/interactions") {
       return json({ error: "Not found" }, 404);
     }
